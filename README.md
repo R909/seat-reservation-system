@@ -12,6 +12,12 @@ A full-stack seat booking application with authentication, real-time seat availa
 - Auth: JWT (httpOnly cookies)  
 - Containerization: Docker + Docker Compose  
 
+## 🚀 RUN FRONTEND
+
+1. Clone from my repo (https://github.com/R909/seat-reservation-system)
+2. RUN npm i
+3. Start Docker with (docker compose up -d)
+4. RUN npm run dev
 ---
 
 ## ⚙️ Prerequisites
@@ -24,24 +30,6 @@ Make sure you have installed:
 
 ---
 
-## ⚙️ Environment Variables
-
-Create a `.env` file:
-
-```
-PORT=8080
-
-DB_HOST=db
-DB_PORT=5432
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=sql_class_2_db
-
-ACCESS_TOKEN_SECRET=your_secret_key
-CORS_ORIGIN=*
-```
-
----
 
 ## 🐳 Run with Docker (Step-by-Step)
 
