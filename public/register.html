@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register — Seat Reservation</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="cinema-bg">
+  <div class="cinema-rows"></div>
+  <div class="top-bar">Seat Reservation System</div>
+
+  <div class="auth-wrap">
+    <div class="card">
+      <h2>Register</h2>
+
+      <div class="error-msg" id="err"></div>
+
+      <div class="form-group">
+        <label for="name">Name</label>
+        <input type="text" id="name" placeholder="John Doe" autocomplete="name" />
+      </div>
+
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" placeholder="john@example.com" autocomplete="email" />
+      </div>
+
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Min 8 chars, 1 uppercase, 1 number" autocomplete="new-password" />
+      </div>
+
+      <button class="btn btn-blue" id="submit-btn" onclick="register()">
+        <span class="btn-text">Register</span>
+        <span class="spinner"></span>
+      </button>
+
+      <p class="switch-text">Already have an account? <a href="/login.html">Login</a></p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ── Redirect if already logged in ────────────────────────────────────────
+  // (async () => {
+  //   try {
+  //     const res = await fetch('/api/seats', { credentials: 'include' });
+  //     if (res.ok) window.location.href = '/seats.html';
+  //   } catch (_) {}
+  // })();
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function showError(msg) {
+    const el = document.getElementById('err');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+  function hideError() {
+    document.getElementById('err').classList.remove('show');
+  }
+
+  function setLoading(on) {
+    const btn = document.getElementById('submit-btn');
+    btn.classList.toggle('loading', on);
+    btn.disabled = on;
+  }
+
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type}`;
+    setTimeout(() => t.classList.add('show'), 10);
+    setTimeout(() => t.classList.remove('show'), 3500);
+  }
+
+  // ── Enter key submits ────────────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter') register();
+  });
+
+  // ── Register ─────────────────────────────────────────────────────────────
+  async function register() {
+    hideError();
+
+    const name     = document.getElementById('name').value.trim();
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+
+    // Client-side pre-validation (matches your Zod schema)
+    if (!name || !email || !password) {
+      showError('Please fill in all fields.'); return;
+    }
+    if (name.length < 2) {
+      showError('Name must be at least 2 characters.'); return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showError('Please enter a valid email.'); return;
+    }
+    if (password.length < 8) {
+      showError('Password must be at least 8 characters.'); return;
+    }
+    if (!/(?=.*[A-Z])(?=.*\d)/.test(password)) {
+      showError('Password must contain at least one uppercase letter and one number.'); return;
+    }
+
+    setLoading(true);
+
+    try {
+      // POST /api/auth/register
+      // Body: { name, email, password }
+      // Success 201: { success: true, data: { user: { id, name, email }, accessToken } }
+      // Cookie: AccessToken (httpOnly) is set automatically by the server
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',   // allows the server to set the httpOnly cookie
+        body: JSON.stringify({ name, email, password })
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        showError(data.message || 'Registration failed. Please try again.');
+        return;
+      }
+
+      // Store user info in sessionStorage for welcome message
+      sessionStorage.setItem('user', JSON.stringify(data.data.user));
+
+      showToast('Registered successfully! Redirecting…');
+      setTimeout(() => window.location.href = '/login.html', 900);
+
+    } catch (err) {
+      showError('Network error. Is the server running?');
+    } finally {
+      setLoading(false);
+    }
+  }
+</script>
+</body>
+</html>

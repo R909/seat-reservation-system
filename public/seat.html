@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Select Seat — Seat Reservation</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- Loader -->
+<div class="page-loader" id="loader">
+  <div class="big-spinner"></div>
+</div>
+
+<div class="seats-page cinema-bg" id="main" style="display:none">
+  <div class="cinema-rows"></div>
+
+  <!-- Top Bar -->
+  <div class="seat-topbar">
+    <span class="brand">Seat Reservation System</span>
+    <span class="user-info">Welcome, <strong id="user-name">Guest</strong></span>
+    <button class="logout-btn" onclick="doLogout()">Logout</button>
+  </div>
+
+  <div class="seats-content">
+    <div class="seats-title">Select Your Seat</div>
+
+    <div class="screen-label">SCREEN</div>
+
+    <!-- Seat Grid -->
+    <div class="seat-grid-wrap" id="seat-grid"></div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#22c55e"></div> Available
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#64748b"></div> Booked
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#3b82f6"></div> Selected
+      </div>
+    </div>
+
+    <div class="total-row">
+      Selected Seats: <span id="total-count">0</span>
+    </div>
+
+    <div class="proceed-wrap">
+      <button class="btn btn-green" onclick="bookSelectedSeats()">
+        Book Selected Seats
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const ROWS_PER_ROW = 8;
+
+  let allSeats = [];
+  let selectedIds = new Set();
+
+  // ───────── Toast ─────────
+  function showToast(msg, type = 'success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type}`;
+    setTimeout(() => t.classList.add('show'), 10);
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+
+  // ───────── Loader ─────────
+  function hideLoader() {
+    document.getElementById('loader').style.display = 'none';
+    document.getElementById('main').style.display = 'flex';
+  }
+
+  // ───────── Load Seats ─────────
+  async function loadSeats() {
+    try {
+      const res = await fetch('/api/seats', {
+        credentials: 'include'
+      });
+
+      if (!res.ok) {
+        window.location.href = '/login.html';
+        return;
+      }
+
+      const data = await res.json();
+
+      if (!data.success) {
+        window.location.href = '/login.html';
+        return;
+      }
+
+      allSeats = data.data;
+
+      const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+      document.getElementById('user-name').textContent = user.name || 'Guest';
+
+      renderGrid();
+      hideLoader();
+
+    } catch {
+      window.location.href = '/login.html';
+    }
+  }
+
+  // ───────── Render Seats ─────────
+  function renderGrid() {
+    const grid = document.getElementById('seat-grid');
+    grid.innerHTML = '';
+
+    let row;
+
+    allSeats.forEach((seat, index) => {
+      if (index % ROWS_PER_ROW === 0) {
+        row = document.createElement('div');
+        row.className = 'seat-row';
+      }
+
+      const btn = document.createElement('button');
+      btn.className = 'seat';
+      btn.innerText = seat.id;
+
+      if (seat.isbooked === 1) {
+        btn.classList.add('booked'); // grey
+        btn.disabled = true;
+      } else if (selectedIds.has(seat.id)) {
+        btn.classList.add('selected'); // blue
+      } else {
+        btn.classList.add('available'); // green
+      }
+
+      btn.onclick = () => toggleSeat(seat.id);
+
+      row.appendChild(btn);
+
+      if (index % ROWS_PER_ROW === ROWS_PER_ROW - 1) {
+        grid.appendChild(row);
+      }
+    });
+
+    updateCount();
+  }
+
+  // ───────── Toggle Seat ─────────
+  function toggleSeat(id) {
+    const seat = allSeats.find(s => s.id === id);
+
+    if (!seat || seat.isbooked === 1) return;
+
+    if (selectedIds.has(id)) {
+      selectedIds.delete(id);
+    } else {
+      selectedIds.add(id);
+    }
+
+    renderGrid();
+  }
+
+  // ───────── Update Count ─────────
+  function updateCount() {
+    document.getElementById('total-count').innerText = selectedIds.size;
+  }
+
+  // ───────── Book Seats ─────────
+  async function bookSelectedSeats() {
+    if (selectedIds.size === 0) {
+      showToast('Please select at least one seat', 'error');
+      return;
+    }
+
+    for (const id of selectedIds) {
+      try {
+        const res = await fetch(`/api/seats/${id}`, {
+          method: 'PUT',
+          credentials: 'include'
+        });
+
+        const data = await res.json();
+
+        if (!data.success) {
+          showToast(data.message || `Seat ${id} failed`, 'error');
+        }
+      } catch {
+        showToast('Server error', 'error');
+      }
+    }
+
+    selectedIds.clear();
+    showToast('Seats booked successfully!');
+    loadSeats(); // refresh UI
+  }
+
+  // ───────── Logout ─────────
+  async function doLogout() {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch {}
+
+    sessionStorage.clear();
+    window.location.href = '/login.html';
+  }
+
+  // ───────── Init ─────────
+  loadSeats();
+</script>
+
+</body>
+</html>

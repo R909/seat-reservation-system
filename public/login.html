@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — Seat Reservation</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="cinema-bg">
+  <div class="cinema-rows"></div>
+  <div class="top-bar">Seat Reservation System</div>
+
+  <div class="auth-wrap">
+    <div class="card">
+      <h2>Login</h2>
+
+      <div class="error-msg" id="err"></div>
+
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="email" placeholder="your@email.com" />
+      </div>
+
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="Your password" />
+      </div>
+
+      <button class="btn btn-blue" id="submit-btn" onclick="doLogin()">
+        <span class="btn-text">Login</span>
+        <span class="spinner"></span>
+      </button>
+
+      <p class="switch-text">
+        Don't have an account? <a href="/register.html">Register</a>
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+/* ─────────────────────────────────────────────
+   HELPERS
+───────────────────────────────────────────── */
+function showError(msg) {
+  const el = document.getElementById('err');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+function hideError() {
+  document.getElementById('err').classList.remove('show');
+}
+
+function setLoading(on) {
+  const btn = document.getElementById('submit-btn');
+  btn.classList.toggle('loading', on);
+  btn.disabled = on;
+}
+
+function showToast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type}`;
+  setTimeout(() => t.classList.add('show'), 10);
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+/* ─────────────────────────────────────────────
+   LOGIN FUNCTION
+───────────────────────────────────────────── */
+async function doLogin() {
+  hideError();
+
+  const emailEl = document.getElementById('email');
+  const passEl  = document.getElementById('password');
+
+  if (!emailEl || !passEl) {
+    console.error("Inputs not found");
+    return;
+  }
+
+  const email = emailEl.value.trim();
+  const password = passEl.value;
+
+  /* VALIDATION */
+  if (!email || !password) {
+    showError('Please fill in all fields.');
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      const msg =
+        res.status === 404 ? 'User not found' :
+        res.status === 400 ? 'Wrong password' :
+        data.message || 'Login failed';
+
+      showError(msg);
+      return;
+    }
+
+    /* SAVE USER */
+    sessionStorage.setItem('user', JSON.stringify(data.data.user));
+
+    showToast('Login successful!');
+
+    /* REDIRECT */
+    setTimeout(() => {
+      window.location.href = '/seat.html';
+    }, 800);
+
+  } catch (err) {
+    showError('Server error. Is backend running?');
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   ENTER KEY SUPPORT (SAFE)
+───────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doLogin();
+  });
+});
+</script>
+
+</body>
+</html>
